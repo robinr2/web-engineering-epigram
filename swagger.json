@@ -1,0 +1,158 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "",
+    "version": "1.0.0",
+    "title": "Web-Engineering I Problem 5 - REST documentation"
+  },
+  "tags": [
+    {
+      "name": "epigrams",
+      "description": "Everything about epigrams"
+    }
+  ],
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/epigrams": {
+      "get": {
+        "tags": [
+          "epigrams"
+        ],
+        "summary": "Returns all epigrams",
+        "description": "Returns all epigrams",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "schema": {
+              "$ref": "#/definitions/Epigrams"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "epigrams"
+        ],
+        "summary": "Add a new epigram",
+        "description": "",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Object that needs to be added to the list of all epigrams. Each time a new object is created, the node.js server automatically generates a unique ID for this object.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Epigram2Send"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "successful operation",
+            "schema": {
+              "$ref": "#/definitions/Epigram2Send"
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity / Invalid input"
+          }
+        }
+      }
+    },
+    "/epigrams/random": {
+      "get": {
+        "tags": [
+          "epigrams"
+        ],
+        "summary": "Return one random quote",
+        "description": "Return a random quote from all available epigrams",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "schema": {
+              "$ref": "#/definitions/Epigrams"
+            }
+          }
+        }
+      }
+    },
+    "/epigrams/id/{epigramID}": {
+      "get": {
+        "tags": [
+          "epigrams"
+        ],
+        "summary": "Find epigram by id",
+        "description": "Find epigram by id",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "epigramID",
+            "in": "path",
+            "description": "id of epigram to return",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "schema": {
+              "$ref": "#/definitions/Epigrams"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Epigrams": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "value"
+      ],
+      "properties": {
+        "id": {
+          "type": "number"
+        },
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "Epigram2Send": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
