@@ -2,32 +2,17 @@ const DELAY = 1000
 const MAX_EPIGRAMS = 5
 let currentPage = 0
 
-async function fetchEpigram() {
+async function fetchFromServer(url, options = {}) {
   try {
-    const response = await fetch('/epigrams/random')
+    const response = await fetch(url, options)
     if (!response.ok) {
-      console.error('Failed to fetch epigram: HTTP status ', response.status)
+      console.error(`Failed to fetch from ${url}: HTTP status `, response.status)
       return null
     }
-    const epigram = await response.json()
-    return epigram
+    const data = await response.json()
+    return data
   } catch (error) {
-    console.error('Failed to fetch epigram: ', error)
-    return null
-  }
-}
-
-async function fetchAllEpigrams() {
-  try {
-    const response = await fetch('/epigrams')
-    if (!response.ok) {
-      console.error('Failed to fetch all epigrams: HTTP status ', response.status)
-      return null
-    }
-    const allEpigrams = await response.json()
-    return allEpigrams.slice(MAX_EPIGRAMS * currentPage, MAX_EPIGRAMS * currentPage + MAX_EPIGRAMS)
-  } catch (error) {
-    console.error('Failed to fetch all epigrams:', error)
+    console.error(`Failed to fetch from ${url}: `, error)
     return null
   }
 }
@@ -40,21 +25,18 @@ function createElement(type, properties = {}, text = '') {
 }
 
 function setStyleBasedOnType(element, type) {
-  element.style.fontStyle = 'normal'
-  element.style.fontWeight = 'normal'
-  element.style.textDecoration = 'none'
-
-  switch (type) {
-    case 'Weißheit':
-      element.style.fontStyle = 'italic'
-      break
-    case 'Lustiger Spruch':
-      element.style.fontWeight = 'bold'
-      break
-    case 'Lektion':
-      element.style.textDecoration = 'underline'
-      break
+  const styles = {
+    Weißheit: { fontStyle: 'italic' },
+    'Lustiger Spruch': { fontWeight: 'bold' },
+    Lektion: { textDecoration: 'underline' },
   }
+
+  Object.assign(element.style, {
+    fontStyle: 'normal',
+    fontWeight: 'normal',
+    textDecoration: 'none',
+    ...styles[type],
+  })
 }
 
 function createEpigramElement(type, epigram) {
@@ -65,35 +47,28 @@ function createEpigramElement(type, epigram) {
 
 function createForm(onSubmit) {
   const form = createElement('form')
-  const typeLabel = createElement('label', {}, 'Type: ')
+  const typeOptions = ['Lustiger Spruch', 'Weißheit', 'Lektion']
   const typeSelect = createElement('select', { name: 'type' })
-  const jokeOption = createElement('option', { value: 'Lustiger Spruch' }, 'Lustiger Spruch')
-  const quoteOption = createElement('option', { value: 'Weißheit' }, 'Weißheit')
-  const lessonOption = createElement('option', { value: 'Lektion' }, 'Lektion')
-  const valueLabel = createElement('label', {}, 'Value: ')
-  const valueInput = createElement('input', { name: 'value' })
-  const submitButton = createElement('button', { type: 'submit' }, 'Create')
-
-  typeSelect.appendChild(jokeOption)
-  typeSelect.appendChild(quoteOption)
-  typeSelect.appendChild(lessonOption)
+  typeOptions.forEach((option) =>
+    typeSelect.appendChild(createElement('option', { value: option }, option)),
+  )
 
   const elements = [
-    typeLabel,
+    createElement('label', {}, 'Type: '),
     typeSelect,
     createElement('br'),
     createElement('br'),
-    valueLabel,
-    valueInput,
+    createElement('label', {}, 'Value: '),
+    createElement('input', { name: 'value' }),
     createElement('br'),
     createElement('br'),
-    submitButton,
+    createElement('button', { type: 'submit' }, 'Create'),
   ]
   elements.forEach((element) => form.appendChild(element))
 
   form.onsubmit = async (event) => {
     event.preventDefault()
-    onSubmit(typeSelect.value, valueInput.value)
+    onSubmit(typeSelect.value, form.elements['value'].value)
   }
 
   return form
@@ -101,71 +76,57 @@ function createForm(onSubmit) {
 
 async function displayAllEpigrams(parent) {
   parent.innerHTML = ''
-  let allEpigrams = await fetchAllEpigrams()
+  const allEpigrams = await fetchFromServer('/epigrams')
   if (allEpigrams) {
-    for (const epigram of allEpigrams) {
-      const listItem = createEpigramElement('li', epigram)
-      parent.appendChild(listItem)
-    }
+    allEpigrams
+      .slice(MAX_EPIGRAMS * currentPage, MAX_EPIGRAMS * currentPage + MAX_EPIGRAMS)
+      .forEach((epigram) => parent.appendChild(createEpigramElement('li', epigram)))
   }
 }
 
 async function initialize() {
   const root = document.getElementById('root')
 
-  let epigram = await fetchEpigram()
-  if (!epigram) return
-  let paragraph = createEpigramElement('p', epigram)
-  root.appendChild(paragraph)
-
-  setInterval(async () => {
-    epigram = await fetchEpigram()
-    if (!epigram) return
-    paragraph.innerText = epigram.value
-    setStyleBasedOnType(paragraph, epigram.type)
-  }, DELAY)
-
-  const list = createElement('ul', {})
-
   const form = createForm(async (type, value) => {
-    try {
-      const response = await fetch('/epigrams', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type, value }),
-      })
-      if (!response.ok) {
-        console.error('Failed to post epigram: HTTP status', response.status)
-        return
-      }
-      displayAllEpigrams(list)
-    } catch (error) {
-      console.error('Failed to post epigram:', error)
-    }
+    const response = await fetchFromServer('/epigrams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, value }),
+    })
+    if (response) displayAllEpigrams(root.querySelector('ul'))
   })
 
   root.appendChild(form)
-  root.appendChild(list)
+  root.appendChild(createElement('ul', {}))
 
-  displayAllEpigrams(list)
+  const epigram = await fetchFromServer('/epigrams/random')
+  if (epigram) {
+    const paragraph = createEpigramElement('p', epigram)
+    root.appendChild(paragraph)
 
-  const nextButton = createElement('button', {}, 'Next')
-  nextButton.addEventListener('click', async () => {
-    currentPage++
-    displayAllEpigrams(list)
+    setInterval(async () => {
+      const newEpigram = await fetchFromServer('/epigrams/random')
+      if (newEpigram) {
+        paragraph.innerText = newEpigram.value
+        setStyleBasedOnType(paragraph, newEpigram.type)
+      }
+    }, DELAY)
+  }
+
+  const buttonNames = ['Prev', 'Next']
+  buttonNames.forEach((name, i) => {
+    const button = createElement('button', {}, name)
+    button.addEventListener('click', () => {
+      // Decreases page number for previous button
+      // Increases page number for next button
+      currentPage = Math.max(0, currentPage + (i * 2 - 1))
+
+      displayAllEpigrams(root.querySelector('ul'))
+    })
+    root.appendChild(button)
   })
 
-  const prevButton = createElement('button', {}, 'Prev')
-  prevButton.addEventListener('click', async () => {
-    if (currentPage > 0) {
-      currentPage--
-      displayAllEpigrams(list)
-    }
-  })
-
-  root.append(nextButton, prevButton)
+  displayAllEpigrams(root.querySelector('ul'))
 }
 
 window.addEventListener('load', initialize)
